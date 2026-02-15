@@ -10,6 +10,7 @@ BIN_SRC="$ROOT_DIR/build/awg-manager-alpha"
 INIT_SRC="$ROOT_DIR/init.d/S99awg-manager-alpha"
 WEB_SRC="$ROOT_DIR/web"
 KMOD_SRC="$ROOT_DIR/amneziawg.ko"
+UPDATER_SRC="$ROOT_DIR/scripts/updater.sh"
 CONTROL_TEMPLATE="$ROOT_DIR/packaging/ipk/CONTROL/control.in"
 POSTINST_SRC="$ROOT_DIR/packaging/ipk/CONTROL/postinst"
 PRERM_SRC="$ROOT_DIR/packaging/ipk/CONTROL/prerm"
@@ -47,6 +48,7 @@ require_file "$CONTROL_TEMPLATE"
 require_file "$POSTINST_SRC"
 require_file "$PRERM_SRC"
 require_file "$KMOD_SRC"
+require_file "$UPDATER_SRC"
 require_dir "$WEB_SRC"
 
 if command -v file >/dev/null 2>&1; then
@@ -70,7 +72,8 @@ fi
 
 mkdir -p "$DIST_DIR"
 mkdir -p "$CONTROL_DIR" "$DATA_DIR/opt/bin" "$DATA_DIR/opt/etc/init.d" \
-    "$DATA_DIR/opt/share/awg-manager-alpha/www" "$DATA_DIR/opt/lib/modules"
+    "$DATA_DIR/opt/share/awg-manager-alpha/www" "$DATA_DIR/opt/lib/modules" \
+    "$DATA_DIR/opt/libexec/awg-manager-alpha"
 
 sed "s/@VERSION@/$VERSION/g; s/@ARCH@/$ARCH/g" "$CONTROL_TEMPLATE" >"$CONTROL_DIR/control"
 cp "$POSTINST_SRC" "$CONTROL_DIR/postinst"
@@ -80,9 +83,11 @@ cp "$BIN_SRC" "$DATA_DIR/opt/bin/awg-manager-alpha"
 cp "$INIT_SRC" "$DATA_DIR/opt/etc/init.d/S99awg-manager-alpha"
 cp -R "$WEB_SRC/." "$DATA_DIR/opt/share/awg-manager-alpha/www/"
 cp "$KMOD_SRC" "$DATA_DIR/opt/lib/modules/amneziawg.ko"
+cp "$UPDATER_SRC" "$DATA_DIR/opt/libexec/awg-manager-alpha/updater.sh"
 
 chmod 0755 "$CONTROL_DIR/postinst" "$CONTROL_DIR/prerm"
 chmod 0755 "$DATA_DIR/opt/bin/awg-manager-alpha" "$DATA_DIR/opt/etc/init.d/S99awg-manager-alpha"
+chmod 0755 "$DATA_DIR/opt/libexec/awg-manager-alpha/updater.sh"
 chmod 0644 "$DATA_DIR/opt/lib/modules/amneziawg.ko"
 
 printf "2.0\n" >"$WORK_DIR/debian-binary"

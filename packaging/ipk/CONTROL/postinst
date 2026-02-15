@@ -2,6 +2,7 @@
 set -e
 
 chmod 0755 /opt/bin/awg-manager-alpha /opt/etc/init.d/S99awg-manager-alpha 2>/dev/null || true
+chmod 0755 /opt/libexec/awg-manager-alpha/updater.sh 2>/dev/null || true
 chmod 0644 /opt/lib/modules/amneziawg.ko 2>/dev/null || true
 mkdir -p /opt/var/run /opt/var/log /opt/lib/modules
 
