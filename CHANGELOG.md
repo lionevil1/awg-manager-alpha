@@ -19,6 +19,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - green LED when loaded,
   - red LED when not loaded.
 - API endpoint `GET /api/kernel-status` (session-protected).
+- Auto-update worker script (`scripts/updater.sh`) with:
+  - manifest check,
+  - package download,
+  - optional SHA-256 verification,
+  - `opkg install` apply flow,
+  - state/log files.
+- Update API endpoints (session-protected):
+  - `GET /api/update/status`,
+  - `POST /api/update/check`,
+  - `POST /api/update/apply`.
+- Bottom-right dashboard update block:
+  - current package version,
+  - disabled update button when no updates,
+  - highlighted active button when update is available.
+- Public update manifest file:
+  - `update/latest-aarch64-3.10.txt`.
 
 ### Changed
 - Login page redesign aligned with Keenetic visual language:
@@ -31,6 +47,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - clearer connectivity/auth feedback.
 - Server now serves UI from filesystem resources instead of large inline C literals.
 - IPK package now includes `amneziawg.ko` at `/opt/lib/modules/amneziawg.ko`.
+- Main post-login interface simplified to two icon-based sections:
+  - `Туннели`,
+  - `Маршрутизация`,
+  with hover labels and hash-based view switching.
+- IPK package now includes updater runtime script at
+  `/opt/libexec/awg-manager-alpha/updater.sh`.
 
 ## [0.1.0-6] - 2026-02-11
 
@@ -112,3 +134,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `backups/awg-manager-alpha_milestone-09-web-resources_20260211-005655.tar.gz`
 - `backups/awg-manager-alpha_milestone-10-kernel-module-ui_20260211-011811.tar.gz`
 - `backups/awg-manager-alpha_milestone-11-kernel-polish_20260211-011955.tar.gz`
+- `backups/awg-manager-alpha_milestone-12-auto-update_20260215-235619.tar.gz`

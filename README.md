@@ -21,7 +21,8 @@ This is stage 1 + packaging baseline:
 - host unit tests and milestone backup tooling,
 - Keenetic-style login redesign + post-login dashboard mock,
 - automatic AmneziaWG kernel module load/unload from service lifecycle,
-- dashboard kernel indicator (red/green LED).
+- dashboard kernel indicator (red/green LED),
+- auto-update status/apply flow from public GitHub repository.
 
 Changelog:
 
@@ -119,6 +120,7 @@ Optional environment variables:
 - `AWG_ROUTER_PORT`
 - `AWG_WEB_ROOT` (default `/opt/share/awg-manager-alpha/www`)
 - `AWG_MODULE_PATH` (default `/opt/lib/modules/amneziawg.ko`)
+- `AWG_UPDATE_MANIFEST_URL` (default GitHub raw manifest URL)
 - `AWG_SESSION_TTL`
 
 ## Web resources
@@ -157,6 +159,40 @@ Dashboard behavior after login:
 - top-right `AmneziaWG Kernel` indicator is green when module is loaded;
 - red when module is not loaded;
 - state is refreshed via session-protected endpoint `GET /api/kernel-status`.
+
+## Auto-update
+
+Public repository:
+
+`https://github.com/lionevil1/awg-manager-alpha`
+
+Default manifest URL:
+
+`https://raw.githubusercontent.com/lionevil1/awg-manager-alpha/master/update/latest-aarch64-3.10.txt`
+
+Manifest format:
+
+```txt
+version=<new-version>
+ipk_url=<https-url-to-ipk>
+sha256=<optional-sha256>
+```
+
+Updater runtime script in package:
+
+`/opt/libexec/awg-manager-alpha/updater.sh`
+
+Update API endpoints (session-protected):
+
+- `GET /api/update/status`
+- `POST /api/update/check`
+- `POST /api/update/apply`
+
+Dashboard behavior:
+
+- bottom-right block shows current package version;
+- update button is disabled if no newer version is available;
+- button lights up and becomes active when update is available.
 
 ## Entware service script
 
@@ -198,6 +234,7 @@ AWG_ROUTER_ADDR=192.168.10.1
 AWG_ROUTER_PORT=80
 AWG_WEB_ROOT=/opt/share/awg-manager-alpha/www
 AWG_MODULE_PATH=/opt/lib/modules/amneziawg.ko
+AWG_UPDATE_MANIFEST_URL=https://raw.githubusercontent.com/lionevil1/awg-manager-alpha/master/update/latest-aarch64-3.10.txt
 AWG_SESSION_TTL=1800
 ```
 
@@ -213,6 +250,7 @@ Packaging template:
 - `scripts/build_ipk.sh`
 - `web/` (deployed to `/opt/share/awg-manager-alpha/www`)
 - `amneziawg.ko` (deployed to `/opt/lib/modules/amneziawg.ko`)
+- `scripts/updater.sh` (deployed to `/opt/libexec/awg-manager-alpha/updater.sh`)
 
 ## Build .ipk
 
@@ -270,6 +308,9 @@ opkg install /path/to/awg-manager-alpha_<version>_aarch64-3.10.ipk
 - `insmod`/`rmmod` errors:
   verify module path `/opt/lib/modules/amneziawg.ko`, kernel compatibility,
   and permissions to load/unload modules.
+- Update button remains disabled unexpectedly:
+  verify manifest URL and contents, and check
+  `/opt/var/log/awg-manager-alpha-update.log`.
 - Service diagnostics:
   check `/opt/var/log/awg-manager-alpha.log` and run
   `/opt/etc/init.d/S99awg-manager-alpha status`.
