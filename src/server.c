@@ -20,6 +20,9 @@
 #define AWG_BODY_MAX (8 * 1024)
 #define AWG_FILE_MAX (1024 * 1024)
 #define AWG_KERNEL_MODULE_NAME "amneziawg"
+#define AWG_PACKAGE_NAME "awg-manager-alpha"
+#define AWG_UPDATE_SCRIPT "/opt/libexec/awg-manager-alpha/updater.sh"
+#define AWG_UPDATE_STATE_FILE "/opt/var/run/awg-manager-alpha-update.state"
 
 static volatile sig_atomic_t g_stop = 0;
 
@@ -589,6 +592,205 @@ static int kernel_module_is_loaded(const char *module_name) {
     return 0;
 }
 
+static void sanitize_json_field(const char *src, char *dst, size_t dst_sz) {
+    size_t i = 0;
+    size_t o = 0;
+
+    if (dst == NULL || dst_sz == 0) {
+        return;
+    }
+
+    dst[0] = '\0';
+    if (src == NULL) {
+        return;
+    }
+
+    for (i = 0; src[i] != '\0' && o + 1 < dst_sz; i++) {
+        unsigned char ch = (unsigned char)src[i];
+        if (ch == '\r' || ch == '\n') {
+            continue;
+        }
+        if (ch == '"' || ch == '\\') {
+            dst[o++] = ' ';
+            continue;
+        }
+        if (ch < 32 || ch > 126) {
+            dst[o++] = ' ';
+            continue;
+        }
+        dst[o++] = (char)ch;
+    }
+    dst[o] = '\0';
+}
+
+static int read_state_value(const char *path, const char *key, char *out, size_t out_sz) {
+    FILE *fp = NULL;
+    char line[512];
+    size_t key_len = 0;
+
+    if (path == NULL || key == NULL || out == NULL || out_sz == 0) {
+        return -1;
+    }
+
+    out[0] = '\0';
+    key_len = strlen(key);
+    fp = fopen(path, "r");
+    if (fp == NULL) {
+        return -1;
+    }
+
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        char *val = NULL;
+        size_t len = 0;
+
+        if (strncmp(line, key, key_len) != 0 || line[key_len] != '=') {
+            continue;
+        }
+
+        val = line + key_len + 1;
+        len = strlen(val);
+        while (len > 0 && (val[len - 1] == '\n' || val[len - 1] == '\r')) {
+            val[--len] = '\0';
+        }
+
+        snprintf(out, out_sz, "%s", val);
+        fclose(fp);
+        return 0;
+    }
+
+    fclose(fp);
+    return -1;
+}
+
+static int get_installed_pkg_version(char *out, size_t out_sz) {
+    FILE *fp = NULL;
+    char cmd[256];
+    char line[128];
+    size_t len = 0;
+
+    if (out == NULL || out_sz == 0) {
+        return -1;
+    }
+
+    out[0] = '\0';
+    snprintf(cmd,
+             sizeof(cmd),
+             "opkg status %s 2>/dev/null | awk -F': ' '/^Version: /{print $2; exit}'",
+             AWG_PACKAGE_NAME);
+
+    fp = popen(cmd, "r");
+    if (fp == NULL) {
+        return -1;
+    }
+
+    if (fgets(line, sizeof(line), fp) == NULL) {
+        (void)pclose(fp);
+        return -1;
+    }
+    (void)pclose(fp);
+
+    len = strlen(line);
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+        line[--len] = '\0';
+    }
+
+    if (line[0] == '\0') {
+        return -1;
+    }
+
+    snprintf(out, out_sz, "%s", line);
+    return 0;
+}
+
+static int trigger_update_worker(const char *action) {
+    char cmd[512];
+    int rc = 0;
+
+    if (action == NULL || action[0] == '\0') {
+        return -1;
+    }
+    if (access(AWG_UPDATE_SCRIPT, X_OK) != 0) {
+        return -1;
+    }
+
+    snprintf(cmd,
+             sizeof(cmd),
+             "%s %s >>/opt/var/log/awg-manager-alpha-update.log 2>&1 &",
+             AWG_UPDATE_SCRIPT,
+             action);
+
+    rc = system(cmd);
+    if (rc != 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static void send_update_status(int cfd) {
+    char state[64];
+    char current[64];
+    char latest[64];
+    char available[8];
+    char message[128];
+    char checked_at[64];
+    char state_j[64];
+    char current_j[64];
+    char latest_j[64];
+    char message_j[128];
+    char checked_j[64];
+    char body[640];
+    const char *update_bool = "false";
+
+    snprintf(state, sizeof(state), "%s", "idle");
+    snprintf(current, sizeof(current), "%s", "unknown");
+    latest[0] = '\0';
+    snprintf(available, sizeof(available), "%s", "0");
+    snprintf(message, sizeof(message), "%s", "no checks yet");
+    checked_at[0] = '\0';
+
+    (void)read_state_value(AWG_UPDATE_STATE_FILE, "state", state, sizeof(state));
+    (void)read_state_value(AWG_UPDATE_STATE_FILE, "current_version", current, sizeof(current));
+    (void)read_state_value(AWG_UPDATE_STATE_FILE, "latest_version", latest, sizeof(latest));
+    (void)read_state_value(AWG_UPDATE_STATE_FILE, "update_available", available, sizeof(available));
+    (void)read_state_value(AWG_UPDATE_STATE_FILE, "message", message, sizeof(message));
+    (void)read_state_value(AWG_UPDATE_STATE_FILE, "checked_at", checked_at, sizeof(checked_at));
+
+    if (current[0] == '\0' || strcmp(current, "unknown") == 0) {
+        char detected[64];
+        if (get_installed_pkg_version(detected, sizeof(detected)) == 0) {
+            snprintf(current, sizeof(current), "%s", detected);
+        }
+    }
+
+    if (strcmp(available, "1") == 0 || strcmp(available, "true") == 0) {
+        update_bool = "true";
+    }
+
+    sanitize_json_field(state, state_j, sizeof(state_j));
+    sanitize_json_field(current, current_j, sizeof(current_j));
+    sanitize_json_field(latest, latest_j, sizeof(latest_j));
+    sanitize_json_field(message, message_j, sizeof(message_j));
+    sanitize_json_field(checked_at, checked_j, sizeof(checked_j));
+
+    snprintf(body,
+             sizeof(body),
+             "{\"state\":\"%s\",\"current_version\":\"%s\",\"latest_version\":\"%s\","
+             "\"update_available\":%s,\"message\":\"%s\",\"checked_at\":\"%s\"}",
+             state_j,
+             current_j,
+             latest_j,
+             update_bool,
+             message_j,
+             checked_j);
+
+    send_response_text(cfd,
+                       200,
+                       "OK",
+                       "application/json; charset=utf-8",
+                       "Cache-Control: no-store\r\n",
+                       body);
+}
+
 static void process_client(int cfd, const awg_config *cfg, awg_session_store *sessions) {
     char req_buf[AWG_REQ_MAX + 1];
     size_t total = 0;
@@ -777,6 +979,81 @@ static void process_client(int cfd, const awg_config *cfg, awg_session_store *se
                                "Cache-Control: no-store\r\n",
                                "{\"module\":\"amneziawg\",\"loaded\":false}");
         }
+        return;
+    }
+
+    if (strcmp(req.method, "GET") == 0 && strcmp(route_path, "/api/update/status") == 0) {
+        if (!request_has_valid_session(&req, sessions)) {
+            send_response_text(cfd,
+                               401,
+                               "Unauthorized",
+                               "application/json; charset=utf-8",
+                               NULL,
+                               "{\"error\":\"unauthorized\"}");
+            return;
+        }
+
+        send_update_status(cfd);
+        return;
+    }
+
+    if (strcmp(req.method, "POST") == 0 && strcmp(route_path, "/api/update/check") == 0) {
+        if (!request_has_valid_session(&req, sessions)) {
+            send_response_text(cfd,
+                               401,
+                               "Unauthorized",
+                               "application/json; charset=utf-8",
+                               NULL,
+                               "{\"error\":\"unauthorized\"}");
+            return;
+        }
+
+        if (trigger_update_worker("check") != 0) {
+            send_response_text(cfd,
+                               503,
+                               "Service Unavailable",
+                               "application/json; charset=utf-8",
+                               NULL,
+                               "{\"accepted\":false,\"error\":\"worker_unavailable\"}");
+            return;
+        }
+
+        send_response_text(cfd,
+                           202,
+                           "Accepted",
+                           "application/json; charset=utf-8",
+                           "Cache-Control: no-store\r\n",
+                           "{\"accepted\":true}");
+        return;
+    }
+
+    if (strcmp(req.method, "POST") == 0 && strcmp(route_path, "/api/update/apply") == 0) {
+        if (!request_has_valid_session(&req, sessions)) {
+            send_response_text(cfd,
+                               401,
+                               "Unauthorized",
+                               "application/json; charset=utf-8",
+                               NULL,
+                               "{\"error\":\"unauthorized\"}");
+            return;
+        }
+
+        if (trigger_update_worker("apply") != 0) {
+            send_response_text(cfd,
+                               503,
+                               "Service Unavailable",
+                               "application/json; charset=utf-8",
+                               NULL,
+                               "{\"accepted\":false,\"error\":\"worker_unavailable\"}");
+            return;
+        }
+
+        send_response_text(cfd,
+                           202,
+                           "Accepted",
+                           "application/json; charset=utf-8",
+                           "Cache-Control: no-store\r\n",
+                           "{\"accepted\":true}");
         return;
     }
 
