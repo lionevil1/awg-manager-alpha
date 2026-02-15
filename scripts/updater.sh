@@ -117,22 +117,26 @@ manifest_value() {
     awk -F'=' -v k="$key" '$1==k {print substr($0, index($0, "=")+1); exit}' "$TMP_MANIFEST"
 }
 
-has_newer_version() {
-    current="$1"
-    latest="$2"
-
+version_gt() {
+    latest="$1"
+    current="$2"
     if [ -z "$latest" ]; then
         return 1
     fi
     if [ "$current" = "unknown" ]; then
         return 0
     fi
-
-    if opkg compare-versions "$latest" gt "$current"; then
+    latest_sorted="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)"
+    if [ "$latest_sorted" = "$latest" ]; then
         return 0
     fi
-
     return 1
+}
+
+has_newer_version() {
+    current="$1"
+    latest="$2"
+    version_gt "$latest" "$current"
 }
 
 check_update_locked() {
