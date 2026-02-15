@@ -126,6 +126,9 @@ version_gt() {
     if [ "$current" = "unknown" ]; then
         return 0
     fi
+    if [ "$latest" = "$current" ]; then
+        return 1
+    fi
     latest_sorted="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)"
     if [ "$latest_sorted" = "$latest" ]; then
         return 0
