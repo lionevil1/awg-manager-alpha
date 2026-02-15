@@ -17,6 +17,19 @@
         current_version: "unknown",
         latest_version: ""
     };
+    var lastActivity = Date.now();
+    var idleTimeout = 180000;
+
+    function resetIdleTimer() {
+        lastActivity = Date.now();
+    }
+
+    function checkIdle() {
+        if (Date.now() - lastActivity > idleTimeout) {
+            fetch("/api/logout", { method: "POST" }).catch(function() {});
+            window.location.href = "/";
+        }
+    }
 
     function setKernelState(state) {
         if (!kernelStatus) {
@@ -290,4 +303,9 @@
             triggerUpdateCheck();
         }
     }, 60000);
+    setInterval(checkIdle, 10000);
+    document.addEventListener("mousemove", resetIdleTimer);
+    document.addEventListener("keydown", resetIdleTimer);
+    document.addEventListener("click", resetIdleTimer);
+    document.addEventListener("scroll", resetIdleTimer);
 })();
