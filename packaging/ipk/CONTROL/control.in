@@ -1,0 +1,9 @@
+Package: awg-manager-alpha
+Version: @VERSION@
+Depends: libc
+Architecture: @ARCH@
+Maintainer: awg-manager-alpha project
+Section: net
+Priority: optional
+Description: AWG Manager web app for Keenetic/Entware
+ Lightweight C web app with Keenetic RCI auth and local session handling.

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>AWG Manager Alpha</title>
+    <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="side">
+            <div class="logo">Keenetic <span>Giga</span></div>
+
+            <nav class="nav" aria-label="Разделы">
+                <button class="navbtn is-active" data-view="tunnels" aria-label="Туннели" title="Туннели" type="button">
+                    <span class="nav-icon">⛓</span>
+                    <span class="nav-tip">Туннели</span>
+                </button>
+
+                <button class="navbtn" data-view="routing" aria-label="Маршрутизация" title="Маршрутизация" type="button">
+                    <span class="nav-icon">↝</span>
+                    <span class="nav-tip">Маршрутизация</span>
+                </button>
+            </nav>
+
+            <div class="grow"></div>
+        </aside>
+
+        <main class="main">
+            <div class="top">
+                <div class="title" id="view-title">Туннели</div>
+                <div class="tools">
+                    <div class="kernel-status is-unknown" id="kernel-status" title="Состояние модуля ядра AmneziaWG">
+                        <span class="kernel-led" aria-hidden="true"></span>
+                        <span class="kernel-label">AmneziaWG Kernel</span>
+                    </div>
+                    <button class="logout" id="out">Выйти</button>
+                </div>
+            </div>
+
+            <section class="content view is-active" id="view-tunnels" data-view-content="tunnels">
+                <article class="panel">
+                    <header class="panel-head">
+                        <h2>Туннели</h2>
+                        <span class="panel-chip">0 активных</span>
+                    </header>
+
+                    <div class="table-head">
+                        <span>Имя</span>
+                        <span>Статус</span>
+                        <span>Endpoint</span>
+                        <span>IP</span>
+                    </div>
+
+                    <div class="empty">
+                        <div class="empty-icon">⛓</div>
+                        <div class="empty-title">Туннели пока не созданы</div>
+                        <div class="empty-text">На следующем этапе здесь появится создание, запуск и мониторинг AmneziaWG-туннелей.</div>
+                    </div>
+                </article>
+            </section>
+
+            <section class="content view" id="view-routing" data-view-content="routing">
+                <article class="panel">
+                    <header class="panel-head">
+                        <h2>Маршрутизация</h2>
+                        <span class="panel-chip">0 правил</span>
+                    </header>
+
+                    <div class="table-head routing-head">
+                        <span>Назначение</span>
+                        <span>Таблица</span>
+                        <span>Шлюз</span>
+                        <span>Интерфейс</span>
+                    </div>
+
+                    <div class="empty">
+                        <div class="empty-icon">↝</div>
+                        <div class="empty-title">Маршруты пока не настроены</div>
+                        <div class="empty-text">Здесь будут правила policy routing, split-tunnel и маршруты для туннелей AmneziaWG.</div>
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script src="/assets/app.js"></script>
+</body>
+</html>

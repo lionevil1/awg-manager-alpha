@@ -1,0 +1,352 @@
+:root {
+    --bg: #0b1627;
+    --bg2: #0f1d33;
+    --panel: #12243d;
+    --panel2: #132742;
+    --line: #263f62;
+    --line-soft: #1d3556;
+    --text: #d7e8ff;
+    --muted: #88a2c7;
+    --accent: #00b8ff;
+    --ok: #30bb76;
+    --bad: #ff5a66;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", "Trebuchet MS", Verdana, sans-serif;
+    background: linear-gradient(180deg, #081322, #0a1526 55%, #0b182a);
+    color: var(--text);
+}
+
+.app {
+    min-height: 100%;
+    display: grid;
+    grid-template-columns: 84px 1fr;
+}
+
+.side {
+    background: linear-gradient(180deg, var(--bg2), #091526);
+    border-right: 1px solid #1a3352;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.logo {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    color: #66ccff;
+    text-transform: uppercase;
+    line-height: 1.15;
+    margin: 4px 6px 12px;
+}
+
+.logo span {
+    color: #dbe9fb;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.navbtn {
+    position: relative;
+    width: 100%;
+    height: 44px;
+    border-radius: 10px;
+    border: 1px solid #274366;
+    background: #10233d;
+    color: #8db1da;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.navbtn:hover,
+.navbtn:focus-visible {
+    border-color: #3e6697;
+    color: #d7ecff;
+    outline: none;
+}
+
+.navbtn.is-active {
+    color: #dff3ff;
+    background: #163151;
+    border-color: #3f6798;
+}
+
+.nav-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.nav-tip {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #35577f;
+    background: #11233b;
+    color: #dbeeff;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+    z-index: 10;
+}
+
+.navbtn:hover .nav-tip,
+.navbtn:focus-visible .nav-tip {
+    opacity: 1;
+}
+
+.grow {
+    flex: 1;
+}
+
+.main {
+    padding: 16px;
+    overflow: auto;
+}
+
+.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 10px 14px;
+}
+
+.title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #dcecff;
+}
+
+.tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.kernel-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px solid #2f4b72;
+    background: #10243e;
+    color: #cde3ff;
+    font-size: 0.79rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.kernel-led {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #8da5c3;
+    box-shadow: 0 0 0 2px #ffffff14;
+}
+
+.kernel-status.is-loaded .kernel-led {
+    background: var(--ok);
+    box-shadow: 0 0 10px #30bb7688;
+}
+
+.kernel-status.is-unloaded .kernel-led {
+    background: var(--bad);
+    box-shadow: 0 0 10px #ff5a6688;
+}
+
+.kernel-status.is-unknown .kernel-led {
+    background: var(--bad);
+    box-shadow: 0 0 10px #ff5a664f;
+}
+
+.kernel-label {
+    color: #d8ebff;
+    font-weight: 600;
+}
+
+.logout {
+    margin-top: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #13aef1, #0098dd);
+    color: #eaf8ff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.view {
+    display: none;
+}
+
+.view.is-active {
+    display: block;
+}
+
+.panel {
+    background: linear-gradient(180deg, var(--panel), var(--panel2));
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 10px 20px #040d1a7a;
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.panel-head h2 {
+    margin: 0;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #dff0ff;
+}
+
+.panel-chip {
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid #335a87;
+    background: #122a46;
+    color: #a6c6e7;
+    font-size: 0.76rem;
+}
+
+.table-head {
+    display: grid;
+    grid-template-columns: 1.1fr 0.7fr 1fr 0.8fr;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: #0f223b;
+    color: #95b4d6;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.routing-head {
+    grid-template-columns: 1fr 0.8fr 0.8fr 0.8fr;
+}
+
+.empty {
+    margin-top: 14px;
+    border: 1px dashed #355a84;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #0c1e35, #10233d);
+    padding: 28px 20px;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: #7fb8e5;
+}
+
+.empty-title {
+    font-size: 1rem;
+    color: #dbedff;
+    font-weight: 600;
+}
+
+.empty-text {
+    margin-top: 6px;
+    color: #92afd0;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 920px) {
+    .title {
+        font-size: 1rem;
+    }
+
+    .table-head,
+    .routing-head {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 6px;
+    }
+}
+
+@media (max-width: 760px) {
+    .app {
+        grid-template-columns: 70px 1fr;
+    }
+
+    .side {
+        padding: 10px 8px;
+    }
+
+    .logo {
+        font-size: 0.84rem;
+        margin: 4px 4px 10px;
+    }
+
+    .navbtn {
+        height: 40px;
+    }
+
+    .nav-tip {
+        display: none;
+    }
+
+    .main {
+        padding: 12px;
+    }
+
+    .top {
+        padding: 6px 4px 12px;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .tools {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .kernel-status {
+        padding: 7px 8px;
+        font-size: 0.73rem;
+    }
+
+    .kernel-label {
+        max-width: 132px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}

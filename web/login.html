@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>AWG Manager Alpha</title>
+    <link rel="stylesheet" href="/assets/auth.css">
+</head>
+<body>
+    <div class="screen">
+        <section class="left">
+            <div class="brand">
+                <div class="klogo">KEENETIC <span>GIGA</span></div>
+                <p class="subtitle">
+                    AWG Manager Alpha использует единую авторизацию с роутером Keenetic
+                    через challenge-response <code>/auth</code>. Пароль не сохраняется на диске.
+                </p>
+                <div class="pills">
+                    <span class="pill">LAN Auth</span>
+                    <span class="pill">RCI /auth</span>
+                    <span class="pill">Session Cookie</span>
+                    <span class="pill">Entware ARM64</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="right">
+            <div class="card">
+                <h1 class="cap">Вход в веб-конфигуратор</h1>
+                <p class="desc">Используйте учетные данные администратора роутера</p>
+
+                <form id="f">
+                    <label for="u">Имя пользователя</label>
+                    <div class="field">
+                        <input id="u" name="username" maxlength="64" required autocomplete="username">
+                        <span class="ico">@</span>
+                    </div>
+
+                    <label for="p">Пароль</label>
+                    <div class="field">
+                        <input id="p" name="password" type="password" maxlength="128" required autocomplete="current-password">
+                        <span class="ico">*</span>
+                    </div>
+
+                    <button id="btn" type="submit">Войти</button>
+                    <div id="msg"></div>
+
+                    <div class="foot">
+                        <span>Интерфейс: AWG Manager Alpha</span>
+                        <span>Keenetic style</span>
+                    </div>
+                </form>
+            </div>
+
+            <div class="right-brand">Keenetic Giga</div>
+            <div class="right-note">Панель управления туннелями и сервисами</div>
+        </section>
+    </div>
+
+    <script src="/assets/auth.js"></script>
+</body>
+</html>
