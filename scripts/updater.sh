@@ -117,6 +117,10 @@ manifest_value() {
     awk -F'=' -v k="$key" '$1==k {print substr($0, index($0, "=")+1); exit}' "$TMP_MANIFEST"
 }
 
+version_to_number() {
+    printf "%s" "$1" | sed 's/^0\./0.0./; s/\./0/g; s/^0*//' | cut -d'-' -f1
+}
+
 version_gt() {
     latest="$1"
     current="$2"
@@ -129,8 +133,15 @@ version_gt() {
     if [ "$latest" = "$current" ]; then
         return 1
     fi
-    latest_sorted="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)"
-    if [ "$latest_sorted" = "$latest" ]; then
+    latest_num="$(version_to_number "$latest")"
+    current_num="$(version_to_number "$current")"
+    if [ -n "$latest_num" ] && [ -n "$current_num" ]; then
+        if [ "$latest_num" -gt "$current_num" ] 2>/dev/null; then
+            return 0
+        fi
+        return 1
+    fi
+    if [ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)" = "$latest" ]; then
         return 0
     fi
     return 1
