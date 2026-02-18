@@ -1,4 +1,5 @@
 #include "session.h"
+#include "hash.h"
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -110,7 +111,8 @@ int awg_session_validate(awg_session_store *store, const char *token) {
     }
 
     for (i = 0; i < (sizeof(store->slots) / sizeof(store->slots[0])); i++) {
-        if (store->slots[i].active && strcmp(store->slots[i].token, token) == 0) {
+        if (store->slots[i].active && 
+            awg_constant_time_compare(store->slots[i].token, token, AWG_SESSION_TOKEN_LEN) == 0) {
             if (store->slots[i].expires_at <= now) {
                 memset(&store->slots[i], 0, sizeof(store->slots[i]));
                 return 0;

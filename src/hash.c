@@ -8,6 +8,28 @@
  * Intended only for protocol compatibility, not for new cryptographic design.
  */
 
+/* Secure memory clearing - prevents compiler optimization */
+static void secure_zero(void *ptr, size_t len) {
+    volatile unsigned char *p = (volatile unsigned char *)ptr;
+    while (len--) {
+        *p++ = 0;
+    }
+}
+
+/* Constant-time comparison to prevent timing attacks */
+int awg_constant_time_compare(const void *a, const void *b, size_t len) {
+    const unsigned char *xa = (const unsigned char *)a;
+    const unsigned char *xb = (const unsigned char *)b;
+    unsigned char result = 0;
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        result |= xa[i] ^ xb[i];
+    }
+
+    return result == 0 ? 0 : -1;
+}
+
 static void to_hex(const uint8_t *in, size_t in_len, char *out, size_t out_len) {
     static const char hex[] = "0123456789abcdef";
     size_t i = 0;
@@ -315,8 +337,8 @@ int awg_md5_hex(const unsigned char *data, size_t len, char out_hex[33]) {
     md5_update(&c, data, len);
     md5_final(&c, d);
     to_hex(d, sizeof(d), out_hex, 33);
-    memset(&c, 0, sizeof(c));
-    memset(d, 0, sizeof(d));
+    secure_zero(&c, sizeof(c));
+    secure_zero(d, sizeof(d));
     return 0;
 }
 
@@ -331,7 +353,7 @@ int awg_sha256_hex(const unsigned char *data, size_t len, char out_hex[65]) {
     sha256_update(&c, data, len);
     sha256_final(&c, d);
     to_hex(d, sizeof(d), out_hex, 65);
-    memset(&c, 0, sizeof(c));
-    memset(d, 0, sizeof(d));
+    secure_zero(&c, sizeof(c));
+    secure_zero(d, sizeof(d));
     return 0;
 }

@@ -6,35 +6,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- Keenetic-style dashboard mock page after successful login (`/app`).
-- External web resources directory:
-  - `web/login.html`, `web/app.html`,
-  - `web/assets/*.css`, `web/assets/*.js`.
-- AmneziaWG module lifecycle management in service script:
-  - load with `insmod` on start if missing,
-  - unload with `rmmod` on stop,
-  - module state in `status` output.
-- Dashboard top-right kernel indicator:
-  - label `AmneziaWG Kernel`,
-  - green LED when loaded,
-  - red LED when not loaded.
-- API endpoint `GET /api/kernel-status` (session-protected).
-- Auto-update worker script (`scripts/updater.sh`) with:
-  - manifest check,
-  - package download,
-  - optional SHA-256 verification,
-  - `opkg install` apply flow,
-  - state/log files.
-- Update API endpoints (session-protected):
-  - `GET /api/update/status`,
-  - `POST /api/update/check`,
-  - `POST /api/update/apply`.
-- Bottom-right dashboard update block:
-  - current package version,
-  - disabled update button when no updates,
-  - highlighted active button when update is available.
-- Public update manifest file:
-  - `update/latest-aarch64-3.10.txt`.
+- Security hardening improvements:
+  - JSON string escaping to prevent injection attacks in `router_auth.c`,
+  - Constant-time comparison for session tokens to prevent timing attacks,
+  - Rate limiting for `/api/login` endpoint (5 attempts per 5 minutes, 15 minute block),
+  - IPv4 address validation for environment overrides,
+  - Secure memory zeroing with `volatile` to prevent compiler optimization,
+  - Security HTTP headers: `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Content-Security-Policy`,
+  - Socket leak fixes in `tcp_connect()` error paths.
+- Unit tests for security features:
+  - Constant-time comparison tests,
+  - IPv4 validation tests.
+
+### Changed
+- Security limits moved to `config.h`:
+  - `AWG_MAX_LOGIN_ATTEMPTS`,
+  - `AWG_BLOCK_DURATION_SEC`,
+  - `AWG_RATE_LIMIT_WINDOW_SEC`.
+
+### Fixed
+- JSON injection vulnerability in Keenetic RCI auth request,
+- Socket file descriptor leak on connection failures,
+- Timing attack vulnerability in session token validation,
+- Missing validation for IPv4 addresses in environment variables.
+
+### Added (previous)
 
 ### Changed
 - Login page redesign aligned with Keenetic visual language:

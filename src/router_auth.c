@@ -22,6 +22,61 @@ typedef struct {
     char cookie[256];
 } auth_probe;
 
+/* JSON string escaping to prevent injection */
+static int json_escape_string(const char *src, char *dst, size_t dst_size) {
+    size_t i = 0;
+    size_t j = 0;
+
+    if (src == NULL || dst == NULL || dst_size == 0) {
+        return -1;
+    }
+
+    dst[0] = '\0';
+
+    while (src[i] != '\0' && j + 1 < dst_size) {
+        unsigned char ch = (unsigned char)src[i];
+
+        /* Escape special JSON characters */
+        if (ch == '"' || ch == '\\') {
+            if (j + 2 >= dst_size) {
+                return -1;
+            }
+            dst[j++] = '\\';
+            dst[j++] = (char)ch;
+        } else if (ch == '\n') {
+            if (j + 2 >= dst_size) {
+                return -1;
+            }
+            dst[j++] = '\\';
+            dst[j++] = 'n';
+        } else if (ch == '\r') {
+            if (j + 2 >= dst_size) {
+                return -1;
+            }
+            dst[j++] = '\\';
+            dst[j++] = 'r';
+        } else if (ch == '\t') {
+            if (j + 2 >= dst_size) {
+                return -1;
+            }
+            dst[j++] = '\\';
+            dst[j++] = 't';
+        } else if (ch < 32) {
+            /* Control characters: skip or encode as \u00XX */
+            if (j + 6 >= dst_size) {
+                return -1;
+            }
+            j += (size_t)snprintf(dst + j, dst_size - j, "\\u00%02x", ch);
+        } else {
+            dst[j++] = (char)ch;
+        }
+        i++;
+    }
+
+    dst[j] = '\0';
+    return 0;
+}
+
 static int tcp_connect(const char *host, uint16_t port) {
     struct addrinfo hints;
     struct addrinfo *res = NULL;
@@ -87,6 +142,7 @@ static int tcp_connect(const char *host, uint16_t port) {
             }
         }
 
+        /* Close socket on connection failure to prevent leak */
         close(fd);
         fd = -1;
     }
@@ -288,6 +344,7 @@ static int post_auth(const char *host,
     int fd = -1;
     char json[512];
     char req[2048];
+    char login_escaped[256];
     char *resp = NULL;
     size_t resp_len = 0;
     int status = 0;
@@ -297,7 +354,18 @@ static int post_auth(const char *host,
         return -1;
     }
 
-    snprintf(json, sizeof(json), "{\"login\":\"%s\",\"password\":\"%s\"}", login, password_hash_hex);
+    /* Escape login to prevent JSON injection */
+    if (json_escape_string(login, login_escaped, sizeof(login_escaped)) != 0) {
+        close(fd);
+        return -1;
+    }
+
+    snprintf(json,
+             sizeof(json),
+             "{\"login\":\"%s\",\"password\":\"%s\"}",
+             login_escaped,
+             password_hash_hex);
+
     snprintf(req,
              sizeof(req),
              "POST /auth HTTP/1.1\r\n"

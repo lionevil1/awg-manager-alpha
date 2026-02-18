@@ -136,6 +136,49 @@ static int test_config_env_overrides(void) {
     return 0;
 }
 
+static int test_constant_time_compare(void) {
+    const char *a = "test_token_12345";
+    const char *b = "test_token_12345";
+    const char *c = "test_token_67890";
+    const char *d = "short";
+
+    /* Equal strings */
+    ASSERT_INT_EQ(0, awg_constant_time_compare(a, b, strlen(a)));
+
+    /* Different strings */
+    ASSERT_INT_EQ(-1, awg_constant_time_compare(a, c, strlen(a)));
+
+    /* Different lengths - compare only common part */
+    ASSERT_INT_EQ(-1, awg_constant_time_compare(a, d, strlen(d)));
+
+    /* NULL handling tested in hash vectors */
+
+    return 0;
+}
+
+static int test_ipv4_validation(void) {
+    awg_config cfg;
+
+    /* Valid IPv4 should be accepted */
+    setenv("AWG_LISTEN_ADDR", "192.168.1.1", 1);
+    awg_config_init_runtime(&cfg);
+    ASSERT_STR_EQ("192.168.1.1", cfg.listen_addr);
+
+    /* Invalid IPv4 should be rejected (keep default) */
+    setenv("AWG_LISTEN_ADDR", "invalid", 1);
+    awg_config_init_runtime(&cfg);
+    ASSERT_STR_EQ("0.0.0.0", cfg.listen_addr);
+
+    /* Empty should be rejected (keep default) */
+    setenv("AWG_LISTEN_ADDR", "", 1);
+    awg_config_init_runtime(&cfg);
+    ASSERT_STR_EQ("0.0.0.0", cfg.listen_addr);
+
+    unsetenv("AWG_LISTEN_ADDR");
+
+    return 0;
+}
+
 static int run_test(const char *name, int (*fn)(void)) {
     int rc = fn();
     if (rc == 0) {
@@ -154,6 +197,8 @@ int main(void) {
     fails += run_test("session lifecycle", test_session_lifecycle);
     fails += run_test("session expiry/capacity", test_session_expiry_and_capacity);
     fails += run_test("config env overrides", test_config_env_overrides);
+    fails += run_test("constant-time compare", test_constant_time_compare);
+    fails += run_test("IPv4 validation", test_ipv4_validation);
 
     if (fails != 0) {
         fprintf(stderr, "unit tests failed: %d\n", fails);

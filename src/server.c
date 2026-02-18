@@ -24,6 +24,112 @@
 #define AWG_UPDATE_SCRIPT "/opt/libexec/awg-manager-alpha/updater.sh"
 #define AWG_UPDATE_STATE_FILE "/opt/var/run/awg-manager-alpha-update.state"
 
+/* Rate limiting structures */
+#define AWG_RATE_LIMIT_SLOTS 64
+
+typedef struct {
+    char ip[INET6_ADDRSTRLEN];
+    time_t last_attempt;
+    int attempts;
+    time_t blocked_until;
+} awg_rate_limit_item;
+
+typedef struct {
+    awg_rate_limit_item slots[AWG_RATE_LIMIT_SLOTS];
+} awg_rate_limit_store;
+
+static awg_rate_limit_store g_rate_limits;
+
+static void rate_limit_init(void) {
+    memset(&g_rate_limits, 0, sizeof(g_rate_limits));
+}
+
+static void rate_limit_prune(void) {
+    time_t now = time(NULL);
+    size_t i;
+
+    for (i = 0; i < AWG_RATE_LIMIT_SLOTS; i++) {
+        if (g_rate_limits.slots[i].ip[0] != '\0') {
+            /* Clear expired blocks */
+            if (g_rate_limits.slots[i].blocked_until > 0 && now >= g_rate_limits.slots[i].blocked_until) {
+                memset(&g_rate_limits.slots[i], 0, sizeof(g_rate_limits.slots[i]));
+            }
+            /* Reset attempt counter after window expires */
+            if (now - g_rate_limits.slots[i].last_attempt > AWG_RATE_LIMIT_WINDOW_SEC) {
+                g_rate_limits.slots[i].attempts = 0;
+                g_rate_limits.slots[i].blocked_until = 0;
+            }
+        }
+    }
+}
+
+static int rate_limit_check_and_increment(const char *client_ip) {
+    size_t i;
+    size_t empty_slot = AWG_RATE_LIMIT_SLOTS;
+    time_t now = time(NULL);
+
+    if (client_ip == NULL || client_ip[0] == '\0') {
+        return 0; /* Allow if IP unknown */
+    }
+
+    rate_limit_prune();
+
+    /* Find existing entry or empty slot */
+    for (i = 0; i < AWG_RATE_LIMIT_SLOTS; i++) {
+        if (g_rate_limits.slots[i].ip[0] == '\0') {
+            if (empty_slot == AWG_RATE_LIMIT_SLOTS) {
+                empty_slot = i;
+            }
+            continue;
+        }
+
+        if (strcmp(g_rate_limits.slots[i].ip, client_ip) == 0) {
+            /* Found existing entry */
+            if (g_rate_limits.slots[i].blocked_until > now) {
+                return -1; /* Still blocked */
+            }
+
+            g_rate_limits.slots[i].attempts++;
+            g_rate_limits.slots[i].last_attempt = now;
+
+            if (g_rate_limits.slots[i].attempts >= AWG_MAX_LOGIN_ATTEMPTS) {
+                g_rate_limits.slots[i].blocked_until = now + AWG_BLOCK_DURATION_SEC;
+                return -1; /* Block now */
+            }
+            return 0;
+        }
+    }
+
+    /* Create new entry */
+    if (empty_slot < AWG_RATE_LIMIT_SLOTS) {
+        snprintf(g_rate_limits.slots[empty_slot].ip,
+                 sizeof(g_rate_limits.slots[empty_slot].ip),
+                 "%s",
+                 client_ip);
+        g_rate_limits.slots[empty_slot].attempts = 1;
+        g_rate_limits.slots[empty_slot].last_attempt = now;
+        g_rate_limits.slots[empty_slot].blocked_until = 0;
+    }
+
+    return 0;
+}
+
+static void rate_limit_reset(const char *client_ip) {
+    size_t i;
+
+    if (client_ip == NULL || client_ip[0] == '\0') {
+        return;
+    }
+
+    for (i = 0; i < AWG_RATE_LIMIT_SLOTS; i++) {
+        if (g_rate_limits.slots[i].ip[0] != '\0' &&
+            strcmp(g_rate_limits.slots[i].ip, client_ip) == 0) {
+            memset(&g_rate_limits.slots[i], 0, sizeof(g_rate_limits.slots[i]));
+            return;
+        }
+    }
+}
+
 static volatile sig_atomic_t g_stop = 0;
 
 typedef struct {
@@ -259,6 +365,11 @@ static int send_response(int fd,
                          size_t body_len) {
     char head[4096];
     int n = 0;
+    const char *security_headers =
+        "X-Frame-Options: DENY\r\n"
+        "X-Content-Type-Options: nosniff\r\n"
+        "X-XSS-Protection: 1; mode=block\r\n"
+        "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'\r\n";
 
     if (content_type == NULL) {
         content_type = "text/plain; charset=utf-8";
@@ -271,11 +382,13 @@ static int send_response(int fd,
                  "Content-Length: %zu\r\n"
                  "Connection: close\r\n"
                  "%s"
+                 "%s"
                  "\r\n",
                  status,
                  status_text,
                  content_type,
                  body_len,
+                 security_headers,
                  extra_headers == NULL ? "" : extra_headers);
 
     if (n < 0 || (size_t)n >= sizeof(head)) {
@@ -791,7 +904,28 @@ static void send_update_status(int cfd) {
                        body);
 }
 
-static void process_client(int cfd, const awg_config *cfg, awg_session_store *sessions) {
+static void get_client_ip(const struct sockaddr_storage *peer, char *out, size_t out_size) {
+    const struct sockaddr_in *sin = (const struct sockaddr_in *)peer;
+    const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)peer;
+
+    if (out == NULL || out_size == 0) {
+        return;
+    }
+
+    out[0] = '\0';
+
+    if (peer->ss_family == AF_INET) {
+        if (inet_ntop(AF_INET, &sin->sin_addr, out, out_size) == NULL) {
+            return;
+        }
+    } else if (peer->ss_family == AF_INET6) {
+        if (inet_ntop(AF_INET6, &sin6->sin6_addr, out, out_size) == NULL) {
+            return;
+        }
+    }
+}
+
+static void process_client(int cfd, const awg_config *cfg, awg_session_store *sessions, const char *client_ip) {
     char req_buf[AWG_REQ_MAX + 1];
     size_t total = 0;
     size_t need_total = 0;
@@ -890,6 +1024,17 @@ static void process_client(int cfd, const awg_config *cfg, awg_session_store *se
         pass[0] = '\0';
         token[0] = '\0';
 
+        /* Rate limiting check */
+        if (client_ip != NULL && rate_limit_check_and_increment(client_ip) != 0) {
+            send_response_text(cfd,
+                               429,
+                               "Too Many Requests",
+                               "application/json; charset=utf-8",
+                               "Retry-After: 60\r\n",
+                               "{\"error\":\"rate_limit_exceeded\",\"retry_after\":60}");
+            return;
+        }
+
         form_get_field(req.body, req.body_len, "username", user, sizeof(user));
         form_get_field(req.body, req.body_len, "password", pass, sizeof(pass));
 
@@ -903,6 +1048,11 @@ static void process_client(int cfd, const awg_config *cfg, awg_session_store *se
         if (!ok) {
             send_response_text(cfd, 401, "Unauthorized", NULL, NULL, "auth failed");
             return;
+        }
+
+        /* Reset rate limit on successful login */
+        if (client_ip != NULL) {
+            rate_limit_reset(client_ip);
         }
 
         if (awg_session_create(sessions, (int)cfg->session_ttl_sec, token, sizeof(token)) != 0) {
@@ -1108,6 +1258,7 @@ int awg_server_run(const awg_config *cfg) {
             cfg->web_root);
 
     awg_session_store_init(&sessions);
+    rate_limit_init();
 
     while (!g_stop) {
         struct sockaddr_storage peer;
@@ -1124,7 +1275,12 @@ int awg_server_run(const awg_config *cfg) {
             break;
         }
 
-        process_client(cfd, cfg, &sessions);
+        {
+            char client_ip[INET6_ADDRSTRLEN];
+            get_client_ip(&peer, client_ip, sizeof(client_ip));
+            process_client(cfd, cfg, &sessions, client_ip);
+        }
+
         close(cfd);
         awg_session_prune(&sessions);
     }

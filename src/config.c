@@ -9,6 +9,22 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+/* Validate IPv4 address format */
+static int validate_ipv4(const char *addr) {
+    struct in_addr ia;
+
+    if (addr == NULL || addr[0] == '\0') {
+        return 0;
+    }
+
+    return inet_pton(AF_INET, addr, &ia) == 1;
+}
+
+/* Validate port number */
+static int validate_port(long port) {
+    return port > 0 && port <= 65535;
+}
+
 static void apply_default_values(awg_config *cfg) {
     if (cfg == NULL) {
         return;
@@ -138,26 +154,32 @@ static void apply_env_overrides(awg_config *cfg) {
 
     v = getenv("AWG_LISTEN_ADDR");
     if (v != NULL && v[0] != '\0') {
-        snprintf(cfg->listen_addr, sizeof(cfg->listen_addr), "%s", v);
+        /* Only override if valid IPv4 */
+        if (validate_ipv4(v)) {
+            snprintf(cfg->listen_addr, sizeof(cfg->listen_addr), "%s", v);
+        }
     }
 
     v = getenv("AWG_LISTEN_PORT");
     if (v != NULL && v[0] != '\0') {
         long p = strtol(v, NULL, 10);
-        if (p > 0 && p <= 65535) {
+        if (validate_port(p)) {
             cfg->listen_port = (uint16_t)p;
         }
     }
 
     v = getenv("AWG_ROUTER_ADDR");
     if (v != NULL && v[0] != '\0') {
-        snprintf(cfg->router_addr, sizeof(cfg->router_addr), "%s", v);
+        /* Only override if valid IPv4 */
+        if (validate_ipv4(v)) {
+            snprintf(cfg->router_addr, sizeof(cfg->router_addr), "%s", v);
+        }
     }
 
     v = getenv("AWG_ROUTER_PORT");
     if (v != NULL && v[0] != '\0') {
         long p = strtol(v, NULL, 10);
-        if (p > 0 && p <= 65535) {
+        if (validate_port(p)) {
             cfg->router_port = (uint16_t)p;
         }
     }
