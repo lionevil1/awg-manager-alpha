@@ -1,3 +1,3 @@
 version=0.1.0-18
 ipk_url=https://github.com/lionevil1/awg-manager-alpha/releases/download/v0.1.0-18/awg-manager-alpha_0.1.0-18_aarch64-3.10.ipk
-sha256=
+sha256=1395245d36a748444686fb8c885fc72ba3e5b0ef8dda22cae8cae86407d8caa0
